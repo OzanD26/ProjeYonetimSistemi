@@ -1,0 +1,33 @@
+/* RESET – sayfayı tam genişlik kullan */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Vite template’in max-width, text-align vs. ayarlarını kaldır */
+#root {
+  max-width: none;
+  text-align: left;
+  padding: 0;
+}
+
+/* AntD layout için sade arka plan */
+.ant-layout {
+  background: #0f1115; /* dark tema */
+}
+
+/* İçerik alanına responsive iç boşluk */
+.app-content {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .app-content { padding: 20px; }
+}
+@media (min-width: 1024px) {
+  .app-content { padding: 24px; }
+}
