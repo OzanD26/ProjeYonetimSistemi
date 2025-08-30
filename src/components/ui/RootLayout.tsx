@@ -1,27 +1,17 @@
-<<<<<<< HEAD
-import { Layout } from "antd";
-import { Outlet } from "react-router-dom";
-=======
 // src/components/ui/RootLayout.tsx
-import { Layout, Menu, Button, Dropdown, Space, Typography } from "antd";
+import { Layout, Menu, Button, Dropdown, Space, Typography, Grid } from "antd";
 import type { MenuProps } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/useAuth";
->>>>>>> 9447b77 (Mock api ayarları login girişi ayarlandı)
 
 const { Header, Sider, Content } = Layout;
+const { useBreakpoint } = Grid;
 
 export default function RootLayout() {
-<<<<<<< HEAD
-  return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider width={220} style={{ color: "#fff", padding: 16 }}>Sidebar</Sider>
-      <Layout>
-        <Header style={{ color: "#fff" }}>Topbar</Header>
-=======
   const nav = useNavigate();
   const { pathname } = useLocation();
   const setToken = useAuth((s) => s.setToken);
+  const screens = useBreakpoint();
 
   const items: MenuProps["items"] = [
     { key: "/", label: "Dashboard" },
@@ -30,9 +20,7 @@ export default function RootLayout() {
     { key: "/team", label: "Team" },
   ];
 
-  const onMenuClick: MenuProps["onClick"] = (e) => {
-    nav(e.key);
-  };
+  const selectedKey = items?.find((it) => pathname === it?.key)?.key ?? "/";
 
   const userMenu: MenuProps["items"] = [
     { key: "profile", label: "Profile (coming soon)" },
@@ -47,27 +35,16 @@ export default function RootLayout() {
     },
   ];
 
-  // aktif menü anahtarını route'a göre seç
-  const selectedKey =
-    items?.find((it) => pathname === it?.key)?.key ?? "/";
-
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        width={220}
-        breakpoint="lg"
-        collapsedWidth={64}
-        style={{ padding: 8 }}
-      >
-        <div style={{ color: "#fff", fontWeight: 700, padding: 12 }}>
-          PM Tool
-        </div>
+      <Sider width={220} breakpoint="lg" collapsedWidth={64} style={{ padding: 8 }}>
+        <div style={{ color: "#fff", fontWeight: 700, padding: 12 }}>PM Tool</div>
         <Menu
           theme="dark"
           mode="inline"
           items={items}
-          onClick={onMenuClick}
           selectedKeys={[selectedKey as string]}
+          onClick={(e) => nav(e.key)}
         />
       </Sider>
 
@@ -77,7 +54,7 @@ export default function RootLayout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 16px",
+            padding: screens.xs ? "0 8px" : "0 16px",
             color: "#fff",
           }}
         >
@@ -90,9 +67,11 @@ export default function RootLayout() {
           </Dropdown>
         </Header>
 
->>>>>>> 9447b77 (Mock api ayarları login girişi ayarlandı)
-        <Content style={{ padding: 16 }}>
-          <Outlet />
+        {/* index.css içinde .app-content için responsive padding tanımlı */}
+        <Content className="app-content">
+          <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>

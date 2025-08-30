@@ -4,10 +4,7 @@ import Protected from "../components/ui/Protected";
 import Dashboard from "../pages/Dashboard";
 import NotFound from "../pages/NotFound";
 import Login from "../features/auth/Login";
-<<<<<<< HEAD
-=======
 import ProjectsPage from "../features/projects/ProjectsPage";  // +++
->>>>>>> 9447b77 (Mock api ayarları login girişi ayarlandı)
 
 export const router = createBrowserRouter([
   {
@@ -17,14 +14,10 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: <RootLayout />,
-<<<<<<< HEAD
-        children: [{ index: true, element: <Dashboard /> }],
-=======
         children: [
           { index: true, element: <Dashboard /> },
           { path: "/projects", element: <ProjectsPage /> },   // +++
         ],
->>>>>>> 9447b77 (Mock api ayarları login girişi ayarlandı)
       },
     ],
   },

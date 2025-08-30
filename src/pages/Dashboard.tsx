@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-import { Card } from "antd";
-
-export default function Dashboard() {
-  return <Card>Dashboard — hoş geldin 🎯</Card>;
-=======
 // src/pages/Dashboard.tsx
 import { Card, Col, List, Row, Statistic, Typography } from "antd";
 
@@ -45,5 +39,4 @@ export default function Dashboard() {
       </Typography.Paragraph>
     </div>
   );
->>>>>>> 9447b77 (Mock api ayarları login girişi ayarlandı)
 }
