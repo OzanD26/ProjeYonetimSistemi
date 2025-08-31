@@ -13,3 +13,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </AppProviders>
   </React.StrictMode>
 );
+console.log("DEBUG ENV =", import.meta.env.VITE_API_URL);

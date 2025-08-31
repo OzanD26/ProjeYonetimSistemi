@@ -1,55 +1,80 @@
-import { useMemo, useState } from "react";
-import { Button, Card, Form, Input, Modal, Select, Space, Table, Tag, App } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { useCallback, useMemo, useState } from "react";
+import {
+  App,
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+} from "antd";
+import type { ColumnsType, TableProps } from "antd/es/table";
 import { useProjects } from "./api/useProjects";
 import { useCreateProject } from "./api/useCreateProject";
 import { useDeleteProject } from "./api/useDeleteProject";
 import type { Project } from "./api/types";
 
+function statusTag(status: Project["status"]) {
+  const color =
+    status === "active" ? "green" : status === "paused" ? "orange" : "default";
+  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  return <Tag color={color}>{label}</Tag>;
+}
+
 export default function ProjectsPage() {
   const { message } = App.useApp();
-  const { data, isLoading } = useProjects();
+  const { data = [], isLoading } = useProjects();
   const createMut = useCreateProject();
   const deleteMut = useDeleteProject();
 
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
 
+  const onDelete = useCallback(
+    async (id: string) => {
+      await deleteMut.mutateAsync(id);
+      message.success("Project deleted");
+    },
+    [deleteMut, message]
+  );
+
   const columns: ColumnsType<Project> = useMemo(
     () => [
       { title: "Name", dataIndex: "name", key: "name" },
-      { title: "Description", dataIndex: "description", key: "description", ellipsis: true },
+      {
+        title: "Description",
+        dataIndex: "description",
+        key: "description",
+        ellipsis: true,
+      },
       {
         title: "Status",
         dataIndex: "status",
         key: "status",
-        render: (s: Project["status"]) => {
-          const color = s === "active" ? "green" : s === "paused" ? "orange" : "default";
-          const label = s[0].toUpperCase() + s.slice(1);
-          return <Tag color={color}>{label}</Tag>;
-        },
+        render: statusTag,
         filters: [
           { text: "Active", value: "active" },
           { text: "Paused", value: "paused" },
           { text: "Archived", value: "archived" },
         ],
-        onFilter: (v, record) => record.status === v,
+        onFilter: (value, record) =>
+          record.status === (value as Project["status"]),
       },
       {
         title: "Actions",
         key: "actions",
         width: 140,
-        render: (_, r) => (
+        render: (_: unknown, r) => (
           <Space>
             {/* gelecekte: Edit */}
             <Button
               danger
               size="small"
               loading={deleteMut.isPending}
-              onClick={async () => {
-                await deleteMut.mutateAsync(r.id);
-                message.success("Project deleted");
-              }}
+              onClick={() => onDelete(r.id)}
             >
               Delete
             </Button>
@@ -57,19 +82,26 @@ export default function ProjectsPage() {
         ),
       },
     ],
-    [deleteMut.isPending]
+    [deleteMut.isPending, onDelete]
   );
 
-  const onCreate = async () => {
+  const onCreate = useCallback(async () => {
     try {
       const values = await form.validateFields();
       await createMut.mutateAsync(values);
       message.success("Project created");
       form.resetFields();
       setOpen(false);
-   } catch  {
-  message.error("Please check the form fields.");
-}
+    } catch {
+      message.error("Please check the form fields.");
+    }
+  }, [createMut, form, message]);
+
+  const tableProps: TableProps<Project> = {
+    rowKey: "id",
+    loading: isLoading,
+    dataSource: data,
+    columns,
   };
 
   return (
@@ -81,12 +113,7 @@ export default function ProjectsPage() {
         </Button>
       }
     >
-      <Table<Project>
-        rowKey="id"
-        loading={isLoading}
-        dataSource={data}
-        columns={columns}
-      />
+      <Table<Project> {...tableProps} />
 
       <Modal
         open={open}
@@ -95,8 +122,9 @@ export default function ProjectsPage() {
         onOk={onCreate}
         confirmLoading={createMut.isPending}
         okText="Create"
+        destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             label="Name"
             name="name"

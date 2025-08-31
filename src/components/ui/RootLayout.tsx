@@ -38,7 +38,7 @@ export default function RootLayout() {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider width={220} breakpoint="lg" collapsedWidth={64} style={{ padding: 8 }}>
-        <div style={{ color: "#fff", fontWeight: 700, padding: 12 }}>PM Tool</div>
+        <div style={{ color: "#fff", fontWeight: 700, padding: 12 }}>Proje Yönetim</div>
         <Menu
           theme="dark"
           mode="inline"
@@ -58,7 +58,7 @@ export default function RootLayout() {
             color: "#fff",
           }}
         >
-          <Typography.Text style={{ color: "#fff" }}>Topbar</Typography.Text>
+          <Typography.Text style={{ color: "#fff" }}></Typography.Text>
 
           <Dropdown menu={{ items: userMenu }} trigger={["click"]}>
             <Button type="text" style={{ color: "#fff" }}>
