@@ -67,7 +67,7 @@ export default function RootLayout() {
           </Dropdown>
         </Header>
 
-        {/* index.css içinde .app-content için responsive padding tanımlı */}
+       
         <Content className="app-content">
           <div style={{ maxWidth: 1280, margin: "0 auto" }}>
             <Outlet />

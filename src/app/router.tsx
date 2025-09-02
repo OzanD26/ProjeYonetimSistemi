@@ -4,7 +4,8 @@ import Protected from "../components/ui/Protected";
 import Dashboard from "../pages/Dashboard";
 import NotFound from "../pages/NotFound";
 import Login from "../features/auth/Login";
-import ProjectsPage from "../features/projects/ProjectsPage";  // +++
+import ProjectsPage from "../features/projects/ProjectsPage";
+import TasksPage from "../features/tasks/TasksPage";   // +++
 
 export const router = createBrowserRouter([
   {
@@ -16,7 +17,8 @@ export const router = createBrowserRouter([
         element: <RootLayout />,
         children: [
           { index: true, element: <Dashboard /> },
-          { path: "/projects", element: <ProjectsPage /> },   // +++
+          { path: "/projects", element: <ProjectsPage /> },
+          { path: "/tasks", element: <TasksPage /> },   // +++
         ],
       },
     ],

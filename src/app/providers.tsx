@@ -1,4 +1,4 @@
-// src/app/providers.tsx
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, App as AntdApp } from "antd";
 import { queryClient } from "./queryClient";
