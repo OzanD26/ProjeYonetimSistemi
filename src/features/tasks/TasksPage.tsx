@@ -1,3 +1,4 @@
+// src/features/tasks/TasksPage.tsx
 import { useCallback, useMemo, useState } from "react";
 import {
   App,
@@ -11,69 +12,183 @@ import {
   Table,
   Tag,
   DatePicker,
+  Tabs,
+  Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import type { RuleObject } from "antd/es/form";
 import dayjs from "dayjs";
+
 import { useTasks } from "./api/useTasks";
 import { useCreateTask } from "./api/useCreateTask";
 import { useDeleteTask } from "./api/useDeleteTask";
 import { useUpdateTask } from "./api/useUpdateTask";
-import type { Task, TaskStatus } from "./api/types";
+import type { Task } from "./api/types";
 
-const statusOptions = [
+import KanbanBoard from "../board/KanbanBoard";
+
+const { Text } = Typography;
+
+/* =========================
+   Shared types & helpers
+   ========================= */
+type SafeStatus = "todo" | "in_progress" | "done";
+type StatusOption = { label: string; value: SafeStatus };
+
+type TaskFormValues = {
+  projectId?: string;
+  title?: string;
+  description?: string;
+  status?: unknown;
+  assignee?: string;
+  dueDate?: dayjs.Dayjs | string | null;
+};
+
+type CreateInput = {
+  projectId: string;
+  title: string;
+  description?: string;
+  status: SafeStatus;
+  assignee?: string;
+  dueDate?: string;
+  position: number;
+};
+
+const statusOptions: StatusOption[] = [
   { label: "To Do", value: "todo" },
   { label: "In Progress", value: "in_progress" },
   { label: "Done", value: "done" },
 ];
 
-function statusTag(s: TaskStatus) {
-  const map: Record<TaskStatus, { color: string; label: string }> = {
-    todo: { color: "default", label: "To Do" },
-    in_progress: { color: "blue", label: "In Progress" },
-    done: { color: "green", label: "Done" },
-  };
-  const v = map[s];
-  return <Tag color={v.color}>{v.label}</Tag>;
+function normalizeStatus(v: unknown): SafeStatus {
+  const s = String(v ?? "").toLowerCase().replace(/\s+/g, "_");
+  if (s === "todo" || s === "in_progress" || s === "done") return s;
+  return "todo";
 }
 
-export default function TasksPage() {
+const STATUS_META: Record<SafeStatus, { color?: string; label: string }> = {
+  todo: { color: "orange", label: "To Do" },
+  in_progress: { color: "blue", label: "In Progress" },
+  done: { color: "green", label: "Done" },
+};
+
+function statusTag(raw: unknown) {
+  const key = normalizeStatus(raw);
+  const meta = STATUS_META[key];
+  return <Tag color={meta.color}>{meta.label}</Tag>;
+}
+
+const notBlank = (msg: string) => ({
+  validator(_: RuleObject, value: unknown) {
+    if (typeof value === "string" && value.trim() === "") {
+      return Promise.reject(new Error(msg));
+    }
+    return Promise.resolve();
+  },
+});
+
+const optionalNotBlank = (msg: string) => ({
+  validator(_: RuleObject, value: unknown) {
+    if (value == null || value === "") return Promise.resolve();
+    if (typeof value === "string" && value.trim() === "") {
+      return Promise.reject(new Error(msg));
+    }
+    return Promise.resolve();
+  },
+});
+
+function toISO(input?: dayjs.Dayjs | string | null): string | undefined {
+  if (!input) return undefined;
+  if (dayjs.isDayjs(input)) return input.toDate().toISOString();
+  const d = new Date(input);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
+/** Aynı project + status içindeki max position + 1024 (yoksa 1024) */
+function nextPositionFor(all: Task[], projectId: string, status: SafeStatus): number {
+  type MaybePos = { position?: number };
+  const same = all.filter(
+    (t) =>
+      String(t.projectId ?? "") === String(projectId) &&
+      normalizeStatus(t.status) === status
+  );
+  if (same.length === 0) return 1024;
+  const maxPos = Math.max(...same.map((t) => (t as MaybePos).position ?? 0));
+  return maxPos + 1024;
+}
+
+function sanitizeToCreate(values: TaskFormValues, known: Task[]): CreateInput {
+  const trim = (v?: string) => (typeof v === "string" ? v.trim() : v);
+  const projectId = (trim(values.projectId) as string) || "";
+  const title = (trim(values.title) as string) || "";
+  if (!projectId || !title) throw new Error("Required fields missing.");
+  const status = normalizeStatus(values.status);
+  return {
+    projectId,
+    title,
+    description: (trim(values.description) as string) || undefined,
+    status,
+    assignee: (trim(values.assignee) as string) || undefined,
+    dueDate: toISO(values.dueDate),
+    position: nextPositionFor(known, projectId, status),
+  };
+}
+
+function buildUpdatePayload(values: TaskFormValues, editing: Task, all: Task[]) {
+  const trim = (v?: string) => (typeof v === "string" ? v.trim() : v);
+  const nextStatus = normalizeStatus(values.status ?? editing.status);
+  const nextProjectId = (trim(values.projectId) as string) ?? editing.projectId ?? "";
+  const payload: Partial<CreateInput> = {
+    projectId: nextProjectId || undefined,
+    title: (trim(values.title) as string) || undefined,
+    description: (trim(values.description) as string) || undefined,
+    status: nextStatus,
+    assignee: (trim(values.assignee) as string) || undefined,
+    dueDate: toISO(values.dueDate),
+  };
+  const prevStatus = normalizeStatus(editing.status);
+  const prevProjectId = String(editing.projectId ?? "");
+  if (nextStatus !== prevStatus || (nextProjectId && String(nextProjectId) !== prevProjectId)) {
+    payload.position = nextPositionFor(all, nextProjectId || prevProjectId, nextStatus);
+  }
+  return payload;
+}
+
+/* =========================
+   Table View
+   ========================= */
+function TaskTableView() {
   const { message } = App.useApp();
+  const [statusFilter, setStatusFilter] = useState<SafeStatus | undefined>(undefined);
 
-  // filtre (çok basit örnek)
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-
-  const { data = [], isLoading } = useTasks({ status: statusFilter });
+  const { data = [], isLoading } = useTasks(
+    statusFilter ? { status: statusFilter } : undefined
+  );
   const createMut = useCreateTask();
   const deleteMut = useDeleteTask();
   const updateMut = useUpdateTask();
 
-  // create modal
+  // Create modal
   const [open, setOpen] = useState(false);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<TaskFormValues>();
 
-  // edit modal
+  // Edit modal
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm] = Form.useForm();
+  const [editForm] = Form.useForm<TaskFormValues>();
   const [editing, setEditing] = useState<Task | null>(null);
 
   const onCreate = useCallback(async () => {
     try {
       const values = await form.validateFields();
-      await createMut.mutateAsync({
-        projectId: values.projectId,
-        title: values.title,
-        description: values.description,
-        status: values.status,
-        assignee: values.assignee,
-        dueDate: values.dueDate ? values.dueDate.toISOString() : undefined,
-      });
+      const payload = sanitizeToCreate(values, data as Task[]);
+      await createMut.mutateAsync(payload);
       message.success("Task created");
       form.resetFields();
       setOpen(false);
     } catch {
       message.error("Please check the form fields.");
     }
-  }, [createMut, form, message]);
+  }, [createMut, data, form, message]);
 
   const onEditOpen = useCallback((t: Task) => {
     setEditing(t);
@@ -84,24 +199,15 @@ export default function TasksPage() {
     try {
       if (!editing) return;
       const values = await editForm.validateFields();
-      await updateMut.mutateAsync({
-        id: editing.id,
-        data: {
-          projectId: values.projectId,
-          title: values.title,
-          description: values.description,
-          status: values.status,
-          assignee: values.assignee,
-          dueDate: values.dueDate ? values.dueDate.toISOString() : undefined,
-        },
-      });
+      const payload = buildUpdatePayload(values, editing, data as Task[]);
+      await updateMut.mutateAsync({ id: editing.id, data: payload });
       message.success("Task updated");
       setEditOpen(false);
       setEditing(null);
     } catch {
       message.error("Please check the form fields.");
     }
-  }, [editing, editForm, updateMut, message]);
+  }, [data, editing, editForm, updateMut, message]);
 
   const onDelete = useCallback(
     async (id: string) => {
@@ -121,7 +227,7 @@ export default function TasksPage() {
         key: "status",
         render: statusTag,
         filters: statusOptions.map((o) => ({ text: o.label, value: o.value })),
-        onFilter: (v, r) => r.status === v,
+        onFilter: (v, r) => normalizeStatus(r.status) === v,
       },
       {
         title: "Due",
@@ -133,12 +239,17 @@ export default function TasksPage() {
         title: "Actions",
         key: "actions",
         width: 180,
-        render: (_, r) => (
+        render: (_: unknown, r) => (
           <Space>
             <Button size="small" onClick={() => onEditOpen(r)}>
               Edit
             </Button>
-            <Button danger size="small" loading={deleteMut.isPending} onClick={() => onDelete(r.id)}>
+            <Button
+              danger
+              size="small"
+              loading={deleteMut.isPending}
+              onClick={() => onDelete(r.id)}
+            >
               Delete
             </Button>
           </Space>
@@ -153,7 +264,7 @@ export default function TasksPage() {
       title="Tasks"
       extra={
         <Space>
-          <Select
+          <Select<SafeStatus>
             allowClear
             placeholder="Filter status"
             style={{ width: 160 }}
@@ -168,12 +279,7 @@ export default function TasksPage() {
         </Space>
       }
     >
-      <Table<Task>
-        rowKey="id"
-        loading={isLoading}
-        dataSource={data}
-        columns={columns}
-      />
+      <Table<Task> rowKey="id" loading={isLoading} dataSource={data} columns={columns} />
 
       {/* Create Modal */}
       <Modal
@@ -183,13 +289,16 @@ export default function TasksPage() {
         onOk={onCreate}
         confirmLoading={createMut.isPending}
         okText="Create"
-        destroyOnHidden
+        destroyOnClose
       >
-        <Form form={form} layout="vertical" preserve={false}>
+        <Form<TaskFormValues> form={form} layout="vertical" preserve={false}>
           <Form.Item
             label="Project ID"
             name="projectId"
-            rules={[{ required: true, message: "Project ID is required" }]}
+            rules={[
+              { required: true, message: "Project ID is required" },
+              notBlank("Project ID cannot be blank"),
+            ]}
           >
             <Input placeholder="e.g. 1" />
           </Form.Item>
@@ -197,20 +306,31 @@ export default function TasksPage() {
           <Form.Item
             label="Title"
             name="title"
-            rules={[{ required: true, message: "Title is required" }]}
+            rules={[
+              { required: true, message: "Title is required" },
+              notBlank("Title cannot be blank"),
+            ]}
           >
             <Input />
           </Form.Item>
 
-          <Form.Item label="Description" name="description">
+          <Form.Item
+            label="Description"
+            name="description"
+            rules={[optionalNotBlank("Description cannot be blank")]}
+          >
             <Input.TextArea rows={3} />
           </Form.Item>
 
           <Form.Item label="Status" name="status" initialValue="todo">
-            <Select options={statusOptions} />
+            <Select<SafeStatus> options={statusOptions} />
           </Form.Item>
 
-          <Form.Item label="Assignee" name="assignee">
+          <Form.Item
+            label="Assignee"
+            name="assignee"
+            rules={[optionalNotBlank("Assignee cannot be blank")]}
+          >
             <Input />
           </Form.Item>
 
@@ -232,9 +352,9 @@ export default function TasksPage() {
         onOk={onEditSave}
         confirmLoading={updateMut.isPending}
         okText="Save"
-        destroyOnHidden
+        destroyOnClose
       >
-        <Form
+        <Form<TaskFormValues>
           key={editing?.id ?? "edit-form"}
           form={editForm}
           layout="vertical"
@@ -245,7 +365,7 @@ export default function TasksPage() {
                   projectId: editing.projectId,
                   title: editing.title,
                   description: editing.description,
-                  status: editing.status,
+                  status: normalizeStatus(editing.status),
                   assignee: editing.assignee,
                   dueDate: editing.dueDate ? dayjs(editing.dueDate) : undefined,
                 }
@@ -255,7 +375,10 @@ export default function TasksPage() {
           <Form.Item
             label="Project ID"
             name="projectId"
-            rules={[{ required: true, message: "Project ID is required" }]}
+            rules={[
+              { required: true, message: "Project ID is required" },
+              notBlank("Project ID cannot be blank"),
+            ]}
           >
             <Input />
           </Form.Item>
@@ -263,20 +386,31 @@ export default function TasksPage() {
           <Form.Item
             label="Title"
             name="title"
-            rules={[{ required: true, message: "Title is required" }]}
+            rules={[
+              { required: true, message: "Title is required" },
+              notBlank("Title cannot be blank"),
+            ]}
           >
             <Input />
           </Form.Item>
 
-          <Form.Item label="Description" name="description">
+          <Form.Item
+            label="Description"
+            name="description"
+            rules={[optionalNotBlank("Description cannot be blank")]}
+          >
             <Input.TextArea rows={3} />
           </Form.Item>
 
           <Form.Item label="Status" name="status">
-            <Select options={statusOptions} />
+            <Select<SafeStatus> options={statusOptions} />
           </Form.Item>
 
-          <Form.Item label="Assignee" name="assignee">
+          <Form.Item
+            label="Assignee"
+            name="assignee"
+            rules={[optionalNotBlank("Assignee cannot be blank")]}
+          >
             <Input />
           </Form.Item>
 
@@ -285,6 +419,34 @@ export default function TasksPage() {
           </Form.Item>
         </Form>
       </Modal>
+    </Card>
+  );
+}
+
+/* =========================
+   Tabs Wrapper (default export)
+   ========================= */
+export default function TasksPage() {
+  return (
+    <Card style={{ borderRadius: 14 }}>
+      <Tabs
+        defaultActiveKey="table"
+        items={[
+          { key: "table", label: "Table View", children: <TaskTableView /> },
+          {
+            key: "kanban",
+            label: "Kanban Board",
+            children: (
+              <>
+                <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+                  Drag & drop ile durum değiştirin ve öncelik sıralayın.
+                </Text>
+                <KanbanBoard />
+              </>
+            ),
+          },
+        ]}
+      />
     </Card>
   );
 }

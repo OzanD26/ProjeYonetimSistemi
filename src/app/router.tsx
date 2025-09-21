@@ -5,7 +5,8 @@ import Dashboard from "../pages/Dashboard";
 import NotFound from "../pages/NotFound";
 import Login from "../features/auth/Login";
 import ProjectsPage from "../features/projects/ProjectsPage";
-import TasksPage from "../features/tasks/TasksPage";   // +++
+import TasksPage from "../features/tasks/TasksPage";
+import KanbanBoard from "../features/board/KanbanBoard";   // +++
 
 export const router = createBrowserRouter([
   {
@@ -18,7 +19,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Dashboard /> },
           { path: "/projects", element: <ProjectsPage /> },
-          { path: "/tasks", element: <TasksPage /> },   // +++
+          { path: "/tasks", element: <TasksPage /> },
+          { path: "/board", element: <KanbanBoard /> },   // +++
         ],
       },
     ],

@@ -20,7 +20,7 @@ import type { Project } from "./api/types";
 
 function statusTag(status: Project["status"]) {
   const color =
-    status === "active" ? "green" : status === "paused" ? "orange" : "default";
+    status === "active" ? "green" : status === "paused" ? "orange" : "blue";
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return <Tag color={color}>{label}</Tag>;
 }
@@ -157,7 +157,10 @@ export default function ProjectsPage() {
           <Form.Item
             label="Name"
             name="name"
-            rules={[{ required: true, message: "Name is required" }]}
+            rules={[{ required: true, message: "Name is required" },
+              {whitespace:true}
+            ]}
+
           >
             <Input placeholder="e.g. Website Revamp" />
           </Form.Item>

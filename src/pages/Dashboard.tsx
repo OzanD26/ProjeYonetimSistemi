@@ -67,7 +67,7 @@ export default function Dashboard() {
   /** Hata mesajını bir kez göster */
   useEffect(() => {
     if (isError) {
-      // eslint-disable-next-line no-console
+      
       console.error(error);
       message.error("Dashboard verileri alınırken bir sorun oluştu.");
     }
